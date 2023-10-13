@@ -1,0 +1,60 @@
+version: '3'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      command: "bash -c 'echo Waiting for Kafka to be ready... && \
+               cub kafka-ready -b kafka:9092 1 30 && \
+               kafka-topics --create --topic credit_card --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic investment --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic debit_card --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic cash_withdrawal --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092"
+
+  data-producers:
+    build:
+      context: ./data-producers
+    ports:
+      - "3000:3000"
+    depends_on:
+      - kafka
+
+  data-analysers:
+    build:
+      context: ./data-analysers
+    ports:
+      - "3001:3001"
+    depends_on:
+      - kafka
+
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_METRICS_PORT: 9997
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schemaregistry0:8085
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: first
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka:9092
+      DYNAMIC_CONFIG_ENABLED: 'true'
+    ports:
+      - 8080:8080
+    depends_on:
+      - kafka
+
+networks:
+  default:
+    driver: bridge

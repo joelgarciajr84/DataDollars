@@ -1,0 +1,8 @@
+kafka:
+  clusters:
+    -
+      name: local
+      bootstrapServers: kafka:9092
+      schemaRegistryUrl: http://schema-registry:8081
+      securityProtocol: PLAINTEXT
+      
