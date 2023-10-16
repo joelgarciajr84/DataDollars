@@ -1,5 +1,6 @@
-version: '3'
+version: "3"
 services:
+  # Zookeeper service
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     ports:
@@ -7,6 +8,7 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
 
+  # Kafka service
   kafka:
     image: confluentinc/cp-kafka:latest
     ports:
@@ -21,16 +23,26 @@ services:
                kafka-topics --create --topic credit_card --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
                kafka-topics --create --topic investment --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
                kafka-topics --create --topic debit_card --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
-               kafka-topics --create --topic cash_withdrawal --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092"
+               kafka-topics --create --topic cash_withdrawal --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic cash_withdrawal_valid --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic cash_withdrawal_invalid --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic credit_card_valid --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic credit_card_invalid --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic debit_card_valid --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic debit_card_invalid --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic investment_valid --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092 && \
+               kafka-topics --create --topic investment_invalid --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:9092"
 
+  # Data producers
   data-producers:
     build:
       context: ./data-producers
     ports:
-      - "3000:3000"
+      - "3002:3002"
     depends_on:
       - kafka
 
+  # Data analysers
   data-analysers:
     build:
       context: ./data-analysers
@@ -39,6 +51,7 @@ services:
     depends_on:
       - kafka
 
+  # Kafka UI
   kafka-ui:
     container_name: kafka-ui
     image: provectuslabs/kafka-ui:latest
@@ -49,12 +62,54 @@ services:
       KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schemaregistry0:8085
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: first
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka:9092
-      DYNAMIC_CONFIG_ENABLED: 'true'
+      DYNAMIC_CONFIG_ENABLED: "true"
     ports:
       - 8080:8080
     depends_on:
       - kafka
 
+  # Elasticsearch service
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.3
+    environment:
+      - "discovery.type=single-node"
+      - "xpack.security.enabled=false"  # Disable security (HTTPS)
+    ports:
+      - "9200:9200"
+    networks:
+      - default
+
+  # Kibana service
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.3
+    ports:
+      - "5601:5601"
+    environment:
+      - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
+    networks:
+      - default
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://elasticsearch:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Logstash
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.10.3
+    volumes:
+      - ./logstash-config:/usr/share/logstash/pipeline
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+    depends_on:
+      - kafka
+      - elasticsearch
+    networks:
+      - default
+
+# Define the Docker networks section if not already present
 networks:
   default:
     driver: bridge

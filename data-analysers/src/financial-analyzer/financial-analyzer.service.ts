@@ -1,79 +1,86 @@
 import { Injectable } from '@nestjs/common';
+import { TRANSACTIONS_TYPES } from './topics';
 import { ClientKafka } from '@nestjs/microservices';
-import { Kafka, Consumer, Producer, logLevel } from 'kafkajs';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class FinancialAnalyzerService {
-  private kafka: Kafka;
-  private consumer: Consumer;
-  private producer: Producer;
-  client: ClientKafka;
+  private static readonly ANOMALY_AMOUNT_TOO_HIGH = 'amount_too_high';
+  private static readonly ANOMALY_AMOUNT_TOO_LOW = 'amount_too_low';
+  private static readonly ANOMALY_INVESTMENT_TYPE_INVALID = 'investment_type_invalid';
+  private static readonly ANOMALY_ATM_LOCATION_INVALID = 'atm_location_invalid';
+  private static readonly STATUS_VALID = 'valid';
+  private static readonly STATUS_INVALID = 'invalid';
+  private static readonly TRANSACTION_AMOUNT_UPPER_LIMIT = 1000;
+  private static readonly TRANSACTION_AMOUNT_LOWER_LIMIT = 55;
+  private static readonly INVESTMENT_TYPE_BONDS = 'Bonds';
+  private static readonly ATM_LOCATION_ATM789 = 'ATM789';
 
-  // constructor(client: ClientKafka) {
-  //   this.kafka = new Kafka({
-  //     clientId: 'financial-analyzer',
-  //     brokers: ['kafka:9092'],
-  //   });
-  //   this.client = client;
-    
+  constructor() {}
 
-  // //CREATE GROUPD ID
-  //   const groupId = uuidv4();
-  //   this.consumer = this.kafka.consumer({groupId});
-  //   this.producer = this.kafka.producer();
-  //   this.detect_anomalies('credit_card_transactions');
-  //   this.detect_anomalies('investment_transactions');
-  //   this.detect_anomalies('debit_card_transactions');
-  //   this.detect_anomalies('cash_withdrawals');
-  // }
+  public async analyzeTransaction(payload: any, clientKafka: ClientKafka) {
+    const transactionType = payload.transaction_type;
 
-  async onModuleInit() {
-    this.client.subscribeToResponseOf('credit_card_transactions');
-    await this.client.connect();
-  }
-  
+    let result;
+    let status;
 
-  private async detect_anomalies(topic_name:string) {
-
-    if(!this.consumer){
-      await this.consumer.connect();
+    switch (transactionType) {
+      case TRANSACTIONS_TYPES.CREDIT_CARD:
+        result = this.checkAmount(payload);
+        break;
+      case TRANSACTIONS_TYPES.INVESTMENT:
+        result = this.checkInvestmentType(payload);
+        break;
+      case TRANSACTIONS_TYPES.DEBIT_CARD:
+        result = this.checkLocation(payload);
+        break;
+      case TRANSACTIONS_TYPES.CASH_WITHDRAWAL:
+        result = this.checkLocation(payload);
+        break;
+      default:
+        return;
     }
-    await this.consumer.subscribe({ topic:topic_name});
-    await this.consumer.run({
-      eachMessage: async ({ message }) => {
-        const data = JSON.parse(message.value.toString());
-        const analysisResult = this.analyzeFinancialData(data);
-        console.log('Analisando dados financeiros')
 
-        const topic = analysisResult.isAnomaly ? 'anomaly_alerts' : 'normal_data';
-
-        await this.produceToTopic('alerts', analysisResult.data);
-      },
-    });
+    status = result.status;
+    const topic = `${transactionType}_${status}`;
+    clientKafka.emit(topic, result.payload);
   }
 
-  async stop() {
-    await this.consumer.disconnect();
-    await this.producer.disconnect();
+  private checkInvestmentType(payload: any) {
+    if (payload.investment_type === FinancialAnalyzerService.INVESTMENT_TYPE_BONDS) {
+      this.logAnomaly(FinancialAnalyzerService.ANOMALY_INVESTMENT_TYPE_INVALID);
+      return this.createResult(payload, FinancialAnalyzerService.STATUS_INVALID, FinancialAnalyzerService.ANOMALY_INVESTMENT_TYPE_INVALID);
+    }
+
+    return this.createResult(payload, FinancialAnalyzerService.STATUS_VALID);
   }
 
-  private analyzeFinancialData(data) {
-    // Realize a análise dos dados aqui para detectar anomalias
-    const isAnomaly = false; // Defina isso com base na análise
+  private checkLocation(payload: any) {
+    if (payload.atm_location === FinancialAnalyzerService.ATM_LOCATION_ATM789) {
+      this.logAnomaly(FinancialAnalyzerService.ANOMALY_ATM_LOCATION_INVALID);
+      return this.createResult(payload, FinancialAnalyzerService.STATUS_INVALID, FinancialAnalyzerService.ANOMALY_ATM_LOCATION_INVALID);
+    }
 
-    return {
-      isAnomaly,
-      data,
-    };
+    return this.createResult(payload, FinancialAnalyzerService.STATUS_VALID);
   }
 
-  private async produceToTopic(topic: string, data: any) {
-    await this.producer.connect();
-    await this.producer.send({
-      topic: topic,
-      messages: [{ value: JSON.stringify(data) }]
-    });
-    await this.producer.disconnect();
+  private checkAmount(payload: any) {
+    if (payload.transaction_amount > FinancialAnalyzerService.TRANSACTION_AMOUNT_UPPER_LIMIT || payload.transaction_amount < FinancialAnalyzerService.TRANSACTION_AMOUNT_LOWER_LIMIT) {
+      const anomaly = payload.transaction_amount > FinancialAnalyzerService.TRANSACTION_AMOUNT_UPPER_LIMIT ? FinancialAnalyzerService.ANOMALY_AMOUNT_TOO_HIGH : FinancialAnalyzerService.ANOMALY_AMOUNT_TOO_LOW;
+      this.logAnomaly(anomaly);
+      return this.createResult(payload, FinancialAnalyzerService.STATUS_INVALID, anomaly);
+    }
+
+    return this.createResult(payload, FinancialAnalyzerService.STATUS_VALID);
+  }
+
+  private logAnomaly(anomaly: string) {
+    console.log('Anomaly detected: ' + anomaly);
+  }
+
+  private createResult(payload: any, status: string, anomaly?: string) {
+    if (anomaly) {
+      payload.anomaly = anomaly;
+    }
+    return { payload, status };
   }
 }

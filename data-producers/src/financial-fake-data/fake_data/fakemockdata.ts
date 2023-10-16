@@ -1,6 +1,9 @@
+import { randomUUID } from "crypto";
+
 export const fakeMockData = {
   credit_card_transactions: [
     {
+      id: randomUUID(),
       transaction_type: 'credit_card',
       card_holder_name: 'João Silva',
       card_number: '**** **** **** 1234',
@@ -9,6 +12,7 @@ export const fakeMockData = {
       timestamp: new Date().toISOString(),
     },
     {
+      id: randomUUID(),
       transaction_type: 'credit_card',
       card_holder_name: 'Maria Oliveira',
       card_number: '**** **** **** 5678',
@@ -17,6 +21,7 @@ export const fakeMockData = {
       timestamp: new Date().toISOString(),
     },
     {
+      id: randomUUID(),
       transaction_type: 'credit_card',
       card_holder_name: 'José Santos',
       card_number: '**** **** **** 9012',
@@ -27,6 +32,7 @@ export const fakeMockData = {
   ],
   investment_transactions: [
     {
+      id: randomUUID(),
       transaction_type: 'investment',
       account_holder: 'Maria Santos',
       investment_type: 'Stocks',
@@ -35,6 +41,7 @@ export const fakeMockData = {
       timestamp: new Date().toISOString(),
     },
     {
+      id: randomUUID(),
       transaction_type: 'investment',
       account_holder: 'João Silva',
       investment_type: 'Bonds', // Tipo de investimento anormal
@@ -45,6 +52,7 @@ export const fakeMockData = {
   ],
   debit_card_transactions: [
     {
+      id: randomUUID(),
       transaction_type: 'debit_card',
       card_holder_name: 'Carlos Oliveira',
       card_number: '**** **** **** 5678',
@@ -53,6 +61,7 @@ export const fakeMockData = {
       timestamp: new Date().toISOString(),
     },
     {
+      id: randomUUID(),
       transaction_type: 'debit_card',
       card_holder_name: 'Ana Rodrigues',
       card_number: '**** **** **** 4321',
@@ -63,6 +72,7 @@ export const fakeMockData = {
   ],
   cash_withdrawals: [
     {
+      id: randomUUID(),
       transaction_type: 'cash_withdrawal',
       account_holder: 'Ana Rodrigues',
       transaction_amount: 50.0,
@@ -70,6 +80,7 @@ export const fakeMockData = {
       timestamp: new Date().toISOString(),
     },
     {
+      id: randomUUID(),
       transaction_type: 'cash_withdrawal',
       account_holder: 'Carlos Oliveira',
       transaction_amount: 10.0, // Valor anormalmente baixo
@@ -77,6 +88,7 @@ export const fakeMockData = {
       timestamp: new Date().toISOString(),
     },
     {
+      id: randomUUID(),
       transaction_type: 'cash_withdrawal',
       account_holder: 'José Santos',
       transaction_amount: 500.0,

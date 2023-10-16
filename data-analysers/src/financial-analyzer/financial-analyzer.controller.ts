@@ -1,21 +1,17 @@
 import { Controller, OnModuleInit } from '@nestjs/common';
 import { Client, ClientKafka, EventPattern } from '@nestjs/microservices';
-import { microserviceConfig } from 'src/microserviceConfig';
+import { microserviceConfig } from '../microserviceConfig';
+import { FinancialAnalyzerService } from './financial-analyzer.service';
+import { TOPICS, TRANSACTIONS_TYPES } from './topics';
 
 @Controller('financial-analyzer')
 export class FinancialAnalyzerController implements OnModuleInit {
-  private client: ClientKafka;
-  constructor() {}
+  constructor(private financialAnalyzer: FinancialAnalyzerService) {}
 
   @Client(microserviceConfig)
   clientKafka: ClientKafka;
   onModuleInit() {
-    const requestPatterns = [
-      'credit_card_transactions',
-      'investment_transactions',
-      'debit_card_transactions',
-      'cash_withdrawals',
-    ];
+    const requestPatterns = TOPICS;
 
     requestPatterns.forEach((pattern) => {
       console.log('Subscribing to ' + pattern);
@@ -23,32 +19,23 @@ export class FinancialAnalyzerController implements OnModuleInit {
     });
   }
 
-  @EventPattern('credit_card_transactions')
+  @EventPattern(TRANSACTIONS_TYPES.CREDIT_CARD)
   async handleCreditCardTransactions(payload: any) {
-    console.log(JSON.stringify(payload) + ' READED');
-    this.clientKafka.emit('credit_card_transactions_valid', payload);
-
+    this.financialAnalyzer.analyzeTransaction(payload, this.clientKafka);
   }
 
-  @EventPattern('investment_transactions')
+  @EventPattern(TRANSACTIONS_TYPES.INVESTMENT)
   async handleInvestmentTransactions(payload: any) {
-    console.log(JSON.stringify(payload) + ' READED');
-    this.clientKafka.emit('investment_transactions_valid', payload);
-
-
+    this.financialAnalyzer.analyzeTransaction(payload, this.clientKafka);
   }
 
-  @EventPattern('debit_card_transactions')
+  @EventPattern(TRANSACTIONS_TYPES.DEBIT_CARD)
   async handleDebitCardTransactions(payload: any) {
-    console.log(JSON.stringify(payload) + ' READED');
-    this.clientKafka.emit('debit_card_transactions_valid', payload);
-
+    this.financialAnalyzer.analyzeTransaction(payload, this.clientKafka);
   }
 
-  @EventPattern('cash_withdrawals')
+  @EventPattern(TRANSACTIONS_TYPES.CASH_WITHDRAWAL)
   async handleCashWithdrawals(payload: any) {
-    console.log(JSON.stringify(payload) + ' READED');
-    this.clientKafka.emit('cash_withdrawals_valid', payload);
-
+    this.financialAnalyzer.analyzeTransaction(payload, this.clientKafka);
   }
 }

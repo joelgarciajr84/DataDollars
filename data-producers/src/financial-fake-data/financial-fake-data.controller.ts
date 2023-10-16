@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { FinancialFakeDataService } from './financial-fake-data.service';
 
-@Controller('financial-fake-data')
+@Controller()
 export class FinancialFakeDataController {
   constructor(
     private readonly financialFakeDataService: FinancialFakeDataService,

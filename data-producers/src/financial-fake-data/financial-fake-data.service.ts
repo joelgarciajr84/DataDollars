@@ -11,7 +11,7 @@ export class FinancialFakeDataService {
       for (const transactionType in fakeMockData) {
         if (Object.prototype.hasOwnProperty.call(fakeMockData, transactionType)) {
           const transactions = fakeMockData[transactionType];
-          await this.sendTransactionsToKafka(transactionType, transactions);
+          await this.sendTransactionsToKafka(transactions);
         }
       }
     } catch (error) {
@@ -22,7 +22,7 @@ export class FinancialFakeDataService {
 
 
 
-  private async sendTransactionsToKafka(topic: string, transactions: any[]) {
+  private async sendTransactionsToKafka(transactions: any[]) {
     const producer = this.kafkaProducerService.getProducer();
 
     try {
@@ -31,10 +31,8 @@ export class FinancialFakeDataService {
         const message = {
           value: JSON.stringify(transaction),
         };
-
+        const topic = transaction.transaction_type;
         console.log(`Sending message to Kafka topic: ${topic}`)
-        console.log(JSON.stringify(message));
-
         await producer.send({
           topic,
           messages: [message],
