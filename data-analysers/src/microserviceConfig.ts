@@ -6,6 +6,10 @@ export const microserviceConfig: KafkaOptions = {
     options: {
         client: {
             brokers: ["kafka:9092"],
+            retry: {
+                initialRetryTime: 500,
+                retries: 8
+            }
         },
         consumer: {
             groupId: 'financial-analyzer-consumer',
